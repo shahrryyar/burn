@@ -547,6 +547,12 @@ whose tensors are split over `devices` (crate `burn-shard`).
   implementations through device dispatch instead of dequantizing first.
   ([#6383](https://github.com/tracel-ai/burn/pull/6383))
 
+- Keep the quantized operand packed when a float tensor is multiplied with a quantized one on an
+  autodiff device. The product used to dequantize the quantized operand and hold the dense copy
+  until backward, so every frozen quantized weight in a training graph cost its full float size.
+  Autodiff now keeps the packed tensor and passes it to the backend's quantized `matmul` in both
+  passes.
+
 #### Random operation keys
 
 Random operations now reserve a `RandomKey` when requested, before shard, fusion, or remote queues
@@ -817,6 +823,14 @@ for configuration and backend limitations.
 enabled. `CosineSimilarity`, `PairwiseDistance`, `CosineEmbeddingLoss`, `TripletMarginLoss`, and
 `Initializer::Orthogonal` are now behind it. Add `linalg` to your `burn` features (or `burn-nn`
 features) to keep using them. ([#6327](https://github.com/tracel-ai/burn/pull/6327))
+
+#### LoRA on linear layers
+
+`Linear` applies a LoRA or QLoRA adapter as `x @ base + scale * ((x @ a) @ b)` instead of composing
+the dense weight `base + scale * (a @ b)` on every forward pass. Training no longer holds a
+weight-sized delta and gradient per adapted projection, and a QLoRA base stays packed inside
+`linear`. Outputs and adapter gradients are unchanged up to float rounding.
+([#6465](https://github.com/tracel-ai/burn/pull/6465))
 
 #### Module derivation
 
